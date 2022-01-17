@@ -1,64 +1,31 @@
-import pkg from "parsimmon";
-const { string, eof, regex, seq, regexp, index: _index } = pkg;
+import Parsimmon from "parsimmon";
+const { string, eof, regex, seq, regexp, index: _index } = Parsimmon;
 
 // New line
 const NEWLINE = string("\n").atLeast(1).or(eof);
-
-/*
- * Indentation
- */
-
 const INDENT = regex(/[\t\s]+/);
-
-/*
- * Task tag
- *     "@done"
- */
-
-const TAG = regex(/@([^\(\s]+(\([^\)]*\))?)/, 1);
-
-/*
- * A string without @tags
- */
-
-const NON_TAG_STRING = regex(/(?:[^@\n][^\s\n]*)(?:[ \t]+[^@\n ][^\s\n]*)*/);
-
+const TAG = regex(/@([^\(\s]+(\([^\)]*\))?)/, 1); // "@done"
+const NON_TAG_STRING = regex(/(?:[^@\n][^\s\n]*)(?:[ \t]+[^@\n ][^\s\n]*)*/); //A string without @tags
 const TAGS = seq(regexp(/[\t ]+/), TAG)
     .map(([_, tag]) => tag)
     .many();
-/*
- * Project definition
- */
-
 const PROJECT = seq(_index, regex(/([^\n]+?):/, 1), TAGS)
     .skip(NEWLINE)
     .map(([index, value, tags]) => {
         return { type: "project", value, tags, index };
     })
     .desc("Project definition");
-
-/*
- * Task definition
- *     "- hello @done"
- */
-
+/* Task definition: "- hello @done" */
 const TASK = seq(_index, string("- "), NON_TAG_STRING, TAGS)
     .skip(NEWLINE)
     .map(([index, _, value, tags]) => ({ type: "task", value, tags, index }))
     .desc("Task definition");
-
-/*
- * Note definition
- */
-
+/* Note definition */
 const NOTE = seq(_index, regex(/[^-\n]([^\n]*[^:\n])?\n*/))
     .map(([index, value]) => ({ type: "note", value, index }))
     .desc("Note definition");
 
-/*
- * A block
- */
-
+/* A block */
 function block(depth = 1, prefix = "") {
     return parentBlock(depth, prefix).or(leafBlock(depth, prefix));
 }
@@ -101,11 +68,7 @@ function parentBlock(depth = 1, prefix = "") {
 
 const parser = block().many();
 
-/*
- * Let's parse something
- */
-
-function parse(str) {
+export default function taskpaperParse(str) {
     // KLUDGE: remove leading newlines and replace \r\n with \n;
     // TODO: rewrite this in a more Parsimmony way
     str = str.replace(/\r\n/gm, "\n");
@@ -126,9 +89,3 @@ function parse(str) {
         throw err;
     }
 }
-
-/*
- * Export
- */
-
-export default parse;
